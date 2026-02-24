@@ -81,10 +81,40 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. CREDENCIALES
+# 2. SISTEMA DE LOGIN (CANDADO DE SEGURIDAD)
 # ==========================================
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+
+def mostrar_login():
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 1.5, 1]) # Centramos el cuadro de login
+    
+    with col2:
+        st.markdown("""
+            <div style="background-color: var(--blue); padding: 15px; border-radius: 8px 8px 0 0; text-align: center;">
+                <h3 style="color: white; margin: 0;">🔒 ACCESO SEGURO - AI V5.0</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        with st.form("login_form"):
+            usuario = st.text_input("Usuario")
+            contrasena = st.text_input("Contraseña", type="password")
+            submit_button = st.form_submit_button("INGRESAR AL SISTEMA")
+            
+            if submit_button:
+                if usuario == "CADSO2026" and contrasena == "X9#mK!p2$vLq8@zW":
+                    st.session_state["autenticado"] = True
+                    st.rerun()
+                else:
+                    st.error("❌ Credenciales incorrectas. Acceso denegado.")
+
+if not st.session_state["autenticado"]:
+    mostrar_login()
+    st.stop() # Detiene la ejecución para proteger los datos de abajo
+
 # ==========================================
-# 2. CREDENCIALES (PROTEGIDAS)
+# 3. CREDENCIALES (SOLO SE LEEN SI HAY LOGIN EXITOSO)
 # ==========================================
 ACCOUNT_ID = st.secrets["ACCOUNT_ID"]
 CONSUMER_KEY = st.secrets["CONSUMER_KEY"]
@@ -95,12 +125,12 @@ GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 
 client_groq = Groq(api_key=GROQ_API_KEY)
 
-# Inicializar variables de estado
+# Inicializar variables de estado para el DataFrame
 if 'df' not in st.session_state:
     st.session_state.df = None
 
 # ==========================================
-# 3. CONEXIÓN Y LIMPIEZA
+# 4. CONEXIÓN Y LIMPIEZA
 # ==========================================
 def consultar_datos_netsuite():
     base_url = f"https://{ACCOUNT_ID}.restlets.api.netsuite.com/app/site/hosting/restlet.nl?script=128&deploy=1"
@@ -109,7 +139,7 @@ def consultar_datos_netsuite():
     return requests.get(base_url, auth=auth)
 
 # ==========================================
-# 4. INTERFAZ VISUAL (DISEÑO V5.0)
+# 5. INTERFAZ VISUAL (DISEÑO V5.0)
 # ==========================================
 
 # Banner Superior
@@ -153,7 +183,7 @@ if st.session_state.df is not None:
     with col1:
         st.markdown('<div class="card-title">🧠 CONSULTOR DE NEGOCIOS IA</div>', unsafe_allow_html=True)
         st.caption("HAZ TU CONSULTA EN LENGUAJE NATURAL")
-        pregunta = st.text_area(" ", placeholder="Ej: ¿Cuánto es el total en Negociacion de Febrero 2025?", height=120, label_visibility="collapsed")
+        pregunta = st.text_area(" ", placeholder="Ej: ¿Cuánto es el total en Negociacion de Febrero 2026?", height=120, label_visibility="collapsed")
         
         btn_analizar = st.button("ANALIZAR DATOS")
         
@@ -175,7 +205,7 @@ if st.session_state.df is not None:
         st.dataframe(df, use_container_width=True, height=500)
 
     # ==========================================
-    # 5. TU LÓGICA Y PROMPT INTACTOS
+    # 6. TU LÓGICA Y PROMPT INTACTOS
     # ==========================================
     if btn_analizar and pregunta:
         columnas_lista = ", ".join(df.columns.tolist())
@@ -206,7 +236,7 @@ if st.session_state.df is not None:
            - Empresas: `nombreEmpresa`
            - Tipo (Venta/Renovación): `tipo`
            - Motivos: `motivoPerdida`
-        6. FILTROS MÚLTIPLES: Si la pregunta tiene varias condiciones (Ej: "Ventas cerradas por Manuel Rivera en 2025"), encadena los filtros correctamente:
+        6. FILTROS MÚLTIPLES: Si la pregunta tiene varias condiciones (Ej: "Ventas cerradas por Manuel Rivera en 2026"), encadena los filtros correctamente:
         7. SI EL TIPO DE "moneda" ES "Soles" CAMBIAR A "US Dollar" dividiendo el totalPrevisto entre 4
         🎯 INSTRUCCIONES DE SALIDA (ADÁPTATE A LA PREGUNTA):
         Analiza cuidadosamente la pregunta y genera DOS variables exactas:
@@ -222,7 +252,7 @@ if st.session_state.df is not None:
             with st.spinner("Procesando..."):
                 try:
                     completion = client_groq.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
+                        model="meta-llama/llama-4-scout-17b-16e-instruct", # Te sugerí cambiar este modelo, ajusta si es necesario
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0
                     )
