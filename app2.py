@@ -240,7 +240,7 @@ if st.session_state.df is not None:
         7. SI EL TIPO DE "moneda" ES "Soles" CAMBIAR A "US Dollar" dividiendo el totalPrevisto entre 4
         🎯 INSTRUCCIONES DE SALIDA (ADÁPTATE A LA PREGUNTA):
         Analiza cuidadosamente la pregunta y genera DOS variables exactas:
-        - Variable `respuesta_final` (FLOAT o INT): Si piden dinero, guarda el monto total. Si piden contar registros, guarda la cantidad.
+        - Variable `respuesta_final` (FLOAT, INT o STRING): Si piden dinero, guarda el monto. Si piden contar, guarda la cantidad. Si piden un dato de texto (ej: nombre, rubro, estado), guarda el texto exacto.
         - Variable `detalles` (STRING): Un texto con el desglose. Si muestras dinero, formatea así: f"${{monto:,.2f}}". Usa saltos de línea ('\\n') para que sea fácil de leer.
 
         Devuelve SOLO código Python limpio. NO agregues ```python al inicio ni ``` al final. Nada de texto extra.
