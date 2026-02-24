@@ -229,7 +229,7 @@ if st.session_state.df is not None:
            `df = df.drop_duplicates(subset=['idOportunidad'])`.
         2. DINERO: Para sumar ganancias o montos previstos, usa la columna `totalPrevisto`.
         3. FECHAS: Antes de filtrar fechas, asegúrate de convertirlas: `df['fechaCierre'] = pd.to_datetime(df['fechaCierre'], errors='coerce')`. Usa `fechaCierre` para ventas ganadas y `fechaCreacion` para nuevas oportunidades.
-        4. ESTADOS DE OPORTUNIDAD: Usa `estadoOportunidad`. Los valores típicos son 'CERRADA' (ganada), 'OPORTUNIDAD PERDIDA', 'OPORTUNIDAD PROCESO'.
+        4. ESTADOS DE OPORTUNIDAD: Usa `estadoOportunidad`. Los valores típicos son 'CERRADA' (ganada), 'OPORTUNIDAD PERDIDA', 'OPORTUNIDAD PROCESO','EN NEGOCIACIÓN'.
            - Si piden cerradas o ganadas: `df[df['estadoOportunidad'].astype(str).str.upper() == 'CERRADA']`.
         5. TEXTOS Y NOMBRES: Si te piden buscar por Vendedor, Empresa, Origen, o Tipo, usa siempre `.str.contains('texto_a_buscar', case=False, na=False)` para evitar errores de mayúsculas/minúsculas.
            - Vendedores: `representanteVentas`
