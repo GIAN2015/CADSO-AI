@@ -116,6 +116,8 @@ if not st.session_state["autenticado"]:
 # ==========================================
 # 3. CREDENCIALES (SOLO SE LEEN SI HAY LOGIN EXITOSO)
 # ==========================================
+# 2. CREDENCIALES (PROTEGIDAS)
+# ==========================================
 ACCOUNT_ID = st.secrets["ACCOUNT_ID"]
 CONSUMER_KEY = st.secrets["CONSUMER_KEY"]
 CONSUMER_SECRET = st.secrets["CONSUMER_SECRET"]
@@ -267,13 +269,24 @@ if st.session_state.df is not None:
                     res_final = vars_locales.get('respuesta_final', 0)
                     texto_detalles = vars_locales.get('detalles', 'Análisis completado sin detalles.')
                     
+                    res_final = vars_locales.get('respuesta_final', 0)
+                    texto_detalles = vars_locales.get('detalles', 'Análisis completado sin detalles.')
+                    
+                    # --- NUEVA LÓGICA INTELIGENTE PARA TEXTO O NÚMEROS ---
+                    try:
+                        valor_formateado = f"${float(res_final):,.2f}"
+                    except (ValueError, TypeError):
+                        valor_formateado = str(res_final)
+                    
                     # Actualizar caja de resultados (¡La naranja!)
                     res_placeholder.markdown(f"""
                         <div class="result-box">
                             <div class="result-label">RESULTADO PRINCIPAL</div>
-                            <div class="result-value">${float(res_final):,.2f}</div>
+                            <div class="result-value">{valor_formateado}</div>
                         </div>
                     """, unsafe_allow_html=True)
+                    
+                    detalles_placeholder.info(texto_detalles)
                     
                     detalles_placeholder.info(texto_detalles)
                     
