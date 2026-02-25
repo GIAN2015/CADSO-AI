@@ -114,9 +114,7 @@ if not st.session_state["autenticado"]:
     st.stop() # Detiene la ejecución para proteger los datos de abajo
 
 # ==========================================
-# 3. CREDENCIALES (SOLO SE LEEN SI HAY LOGIN EXITOSO)
-# ==========================================
-# 2. CREDENCIALES (PROTEGIDAS)
+# 3. CREDENCIALES (PROTEGIDAS)
 # ==========================================
 ACCOUNT_ID = st.secrets["ACCOUNT_ID"]
 CONSUMER_KEY = st.secrets["CONSUMER_KEY"]
@@ -192,6 +190,7 @@ if st.session_state.df is not None:
         # Contenedores para el resultado dinámico
         res_placeholder = st.empty()
         detalles_placeholder = st.empty()
+        veredicto_placeholder = st.empty() # NUEVO: Contenedor para el veredicto
         
         # Estado inicial del resultado
         if not pregunta or not btn_analizar:
@@ -207,7 +206,7 @@ if st.session_state.df is not None:
         st.dataframe(df, use_container_width=True, height=500)
 
     # ==========================================
-    # 6. TU LÓGICA Y PROMPT INTACTOS
+    # 6. LÓGICA DE AGENTE DE 2 PASOS
     # ==========================================
     if btn_analizar and pregunta:
         columnas_lista = ", ".join(df.columns.tolist())
@@ -215,8 +214,8 @@ if st.session_state.df is not None:
         df.info(buf=buffer)
         info_tabla = buffer.getvalue()
 
-        # --- TU PROMPT ORIGINAL AL 100% ---
-        prompt = f"""
+        # --- PASO 1: PROMPT PARA EXTRAER DATOS (Con Regla 7 añadida) ---
+        prompt_extraccion = f"""
         Eres un Analista de Datos Senior de Inteligencia Artificial de CAD SOLUTIONS.
         Genera ÚNICAMENTE código Python con pandas para responder la pregunta. El dataframe `df` ya existe en memoria, NO uses read_csv.
 
@@ -238,8 +237,10 @@ if st.session_state.df is not None:
            - Empresas: `nombreEmpresa`
            - Tipo (Venta/Renovación): `tipo`
            - Motivos: `motivoPerdida`
-        6. FILTROS MÚLTIPLES: Si la pregunta tiene varias condiciones (Ej: "Ventas cerradas por Manuel Rivera en 2026"), encadena los filtros correctamente:
-        7. SI EL TIPO DE "moneda" ES "Soles" CAMBIAR A "US Dollar" dividiendo el totalPrevisto entre 4
+        6. FILTROS MÚLTIPLES: Si la pregunta tiene varias condiciones (Ej: "Ventas cerradas por Manuel Rivera en 2026"), encadena los filtros correctamente.
+        7. TILDES Y ORTOGRAFÍA: Al buscar textos o nombres (como Vendedores o Empresas), asume que el usuario puede no usar tildes. Escribe el código Pandas usando expresiones regulares para ignorar tildes, por ejemplo: `df['representanteVentas'].str.contains('ver[oó]nika', case=False, regex=True)`.
+        8. SI EL TIPO DE "moneda" ES "Soles" CAMBIAR A "US Dollar" dividiendo el totalPrevisto entre 4.
+        
         🎯 INSTRUCCIONES DE SALIDA (ADÁPTATE A LA PREGUNTA):
         Analiza cuidadosamente la pregunta y genera DOS variables exactas:
         - Variable `respuesta_final` (FLOAT, INT o STRING): Si piden dinero, guarda el monto. Si piden contar, guarda la cantidad. Si piden un dato de texto (ej: nombre, rubro, estado), guarda el texto exacto.
@@ -251,11 +252,12 @@ if st.session_state.df is not None:
         """
         
         with col1:
-            with st.spinner("Procesando..."):
+            with st.spinner("Procesando datos..."):
                 try:
+                    # EJECUCIÓN DEL PASO 1 (Extracción)
                     completion = client_groq.chat.completions.create(
-                        model="meta-llama/llama-4-scout-17b-16e-instruct", # Te sugerí cambiar este modelo, ajusta si es necesario
-                        messages=[{"role": "user", "content": prompt}],
+                        model="meta-llama/llama-4-scout-17b-16e-instruct", # Tu modelo
+                        messages=[{"role": "user", "content": prompt_extraccion}],
                         temperature=0
                     )
                     
@@ -269,16 +271,13 @@ if st.session_state.df is not None:
                     res_final = vars_locales.get('respuesta_final', 0)
                     texto_detalles = vars_locales.get('detalles', 'Análisis completado sin detalles.')
                     
-                    res_final = vars_locales.get('respuesta_final', 0)
-                    texto_detalles = vars_locales.get('detalles', 'Análisis completado sin detalles.')
-                    
-                    # --- NUEVA LÓGICA INTELIGENTE PARA TEXTO O NÚMEROS ---
+                    # Lógica para mostrar número o texto sin que falle
                     try:
                         valor_formateado = f"${float(res_final):,.2f}"
                     except (ValueError, TypeError):
                         valor_formateado = str(res_final)
                     
-                    # Actualizar caja de resultados (¡La naranja!)
+                    # Actualizar caja de resultados principal
                     res_placeholder.markdown(f"""
                         <div class="result-box">
                             <div class="result-label">RESULTADO PRINCIPAL</div>
@@ -287,9 +286,34 @@ if st.session_state.df is not None:
                     """, unsafe_allow_html=True)
                     
                     detalles_placeholder.info(texto_detalles)
+
+                    # --- PASO 2: LA IA ANALIZA EL DATO Y DA SU VEREDICTO ---
+                    with st.spinner("Generando veredicto consultivo..."):
+                        prompt_analisis = f"""
+                        El gerente de CAD SOLUTIONS hizo esta pregunta: "{pregunta}"
+                        
+                        Los datos exactos que el sistema extrajo son:
+                        - Resultado principal: {valor_formateado}
+                        - Detalles: {texto_detalles}
+
+                        Eres un consultor de negocios y ventas Senior. Analiza este resultado y escribe un breve veredicto o conclusión estratégica para el gerente. Sé directo, profesional y aporta valor o sugerencias si aplica. 
+                        NO expliques cómo hiciste el cálculo matemático, concéntrate estrictamente en qué significa este dato para el negocio en un párrafo de máximo 3 a 4 líneas.
+                        """
+                        
+                        # Usamos un modelo más versátil para la redacción
+                        completion_analisis = client_groq.chat.completions.create(
+                            model="llama-3.3-70b-versatile", 
+                            messages=[{"role": "user", "content": prompt_analisis}],
+                            temperature=0.5
+                        )
+                        
+                        veredicto_ia = completion_analisis.choices[0].message.content
+                        
+                        # Mostrar el veredicto en la UI
+                        veredicto_placeholder.markdown("### 💡 Veredicto Estratégico")
+                        veredicto_placeholder.success(veredicto_ia)
                     
-                    detalles_placeholder.info(texto_detalles)
-                    
+                    # Código oculto por si quieres ver qué hizo
                     with st.expander("⚙️ VER CÓDIGO GENERADO POR LA IA"):
                         st.code(codigo_limpio, language='python')
                         
@@ -302,4 +326,4 @@ if st.session_state.df is not None:
                     """, unsafe_allow_html=True)
                     detalles_placeholder.error(f"Error técnico: {e}")
                     with st.expander("🛠️ Ver el código que falló"):
-                        st.code(codigo_limpio, language='python')
+                        st.code(vars().get('codigo_limpio', 'No se generó código'), language='python')
