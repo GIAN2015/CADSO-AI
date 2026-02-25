@@ -7,7 +7,7 @@ import io
 import re
 
 # ==========================================
-# 1. CONFIGURACIÓN DE LA PÁGINA Y CSS (¡LA MAGIA VISUAL!)
+# 1. CONFIGURACIÓN DE LA PÁGINA Y CSS 
 # ==========================================
 st.set_page_config(page_title="CAD SOLUTIONS AI - V5.0", layout="wide", initial_sidebar_state="collapsed")
 
@@ -88,7 +88,7 @@ if "autenticado" not in st.session_state:
 
 def mostrar_login():
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 1.5, 1]) # Centramos el cuadro de login
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     
     with col2:
         st.markdown("""
@@ -111,7 +111,7 @@ def mostrar_login():
 
 if not st.session_state["autenticado"]:
     mostrar_login()
-    st.stop() # Detiene la ejecución para proteger los datos de abajo
+    st.stop()
 
 # ==========================================
 # 3. CREDENCIALES (PROTEGIDAS)
@@ -125,12 +125,11 @@ GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 
 client_groq = Groq(api_key=GROQ_API_KEY)
 
-# Inicializar variables de estado para el DataFrame
 if 'df' not in st.session_state:
     st.session_state.df = None
 
 # ==========================================
-# 4. CONEXIÓN Y LIMPIEZA
+# 4. CONEXIÓN Y LIMPIEZA DE NETSUITE
 # ==========================================
 def consultar_datos_netsuite():
     base_url = f"https://{ACCOUNT_ID}.restlets.api.netsuite.com/app/site/hosting/restlet.nl?script=128&deploy=1"
@@ -141,8 +140,6 @@ def consultar_datos_netsuite():
 # ==========================================
 # 5. INTERFAZ VISUAL (DISEÑO V5.0)
 # ==========================================
-
-# Banner Superior
 registros_txt = f"{len(st.session_state.df)} REGISTROS" if st.session_state.df is not None else "ESPERANDO DATA"
 st.markdown(f"""
     <div class="top-banner">
@@ -151,7 +148,6 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Sincronización (Solo se muestra si no hay datos)
 if st.session_state.df is None:
     if st.button("📥 Sincronizar Datos desde NetSuite (Inicialización)"):
         with st.spinner("Descargando y preparando base de datos..."):
@@ -161,7 +157,6 @@ if st.session_state.df is None:
                 items = list(data.values()) if isinstance(data, dict) else data
                 df = pd.DataFrame(items)
                 
-                # --- TU LIMPIEZA DE DATOS INTACTA ---
                 for col in df.columns:
                     if any(keyword in col.lower() for keyword in ['total', 'monto', 'previsto']):
                         df[col] = pd.to_numeric(df[col].astype(str).replace(r'[\$,]', '', regex=True), errors='coerce').fillna(0)
@@ -169,30 +164,27 @@ if st.session_state.df is None:
                         df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
                 
                 st.session_state.df = df
-                st.rerun() # Recarga la página para mostrar el dashboard
+                st.rerun()
             else:
                 st.error(f"Error al conectar con NetSuite: Código {res.status_code}")
 
-# Mostrar Dashboard si hay datos
 if st.session_state.df is not None:
     df = st.session_state.df
     
-    # DIVISIÓN EN COLUMNAS DEL DISEÑO QUE PASASTE
     col1, espaciador, col2 = st.columns([3.5, 0.2, 6.3])
     
+    # -------- COLUMNA IZQUIERDA (CHAT) --------
     with col1:
         st.markdown('<div class="card-title">🧠 CONSULTOR DE NEGOCIOS IA</div>', unsafe_allow_html=True)
         st.caption("HAZ TU CONSULTA EN LENGUAJE NATURAL")
-        pregunta = st.text_area(" ", placeholder="Ej: ¿Cuánto es el total en Negociacion de Febrero 2026?", height=120, label_visibility="collapsed")
+        pregunta = st.text_area(" ", placeholder="Ej: Información de la oportunidad 656", height=120, label_visibility="collapsed")
         
         btn_analizar = st.button("ANALIZAR DATOS")
         
-        # Contenedores para el resultado dinámico
-        res_placeholder = st.empty()
-        detalles_placeholder = st.empty()
-        veredicto_placeholder = st.empty() # NUEVO: Contenedor para el veredicto
+        res_placeholder = st.empty()        # 1. Caja de resultado (Azul)
+        detalles_placeholder = st.empty()   # 2. Detalles (Celeste)
+        veredicto_placeholder = st.empty()  # 3. El veredicto de la IA (Verde)
         
-        # Estado inicial del resultado
         if not pregunta or not btn_analizar:
              res_placeholder.markdown("""
                 <div class="result-box">
@@ -201,12 +193,16 @@ if st.session_state.df is not None:
                 </div>
             """, unsafe_allow_html=True)
 
+    # -------- COLUMNA DERECHA (TABLAS) --------
     with col2:
+        # ¡AQUÍ ESTÁ EL SECRETO! Creamos un espacio vacío a la derecha, justo ARRIBA del título de la base de datos
+        tabla_derecha_placeholder = st.empty() 
+        
         st.markdown('<div class="card-title">📋 BASE DE DATOS SINCRONIZADA</div>', unsafe_allow_html=True)
         st.dataframe(df, use_container_width=True, height=500)
 
     # ==========================================
-    # 6. LÓGICA DE AGENTE DE 2 PASOS
+    # 6. LÓGICA DE AGENTE DE 2 PASOS + TABLAS
     # ==========================================
     if btn_analizar and pregunta:
         columnas_lista = ", ".join(df.columns.tolist())
@@ -214,7 +210,6 @@ if st.session_state.df is not None:
         df.info(buf=buffer)
         info_tabla = buffer.getvalue()
 
-        # --- PASO 1: PROMPT PARA EXTRAER DATOS (Con Regla 7 añadida) ---
         prompt_extraccion = f"""
         Eres un Analista de Datos Senior de Inteligencia Artificial de CAD SOLUTIONS.
         Genera ÚNICAMENTE código Python con pandas para responder la pregunta. El dataframe `df` ya existe en memoria, NO uses read_csv.
@@ -225,26 +220,23 @@ if st.session_state.df is not None:
         Información técnica de tipos:
         {info_tabla}
 
-        🚨 REGLAS ESTRICTAS DE NEGOCIO (¡LEE ATENTAMENTE!) 🚨:
+        🚨 REGLAS ESTRICTAS DE NEGOCIO:
         1. DUPLICADOS (VITAL): ANTES de hacer cualquier cálculo, elimina filas repetidas por oportunidad: 
            `df = df.drop_duplicates(subset=['idOportunidad'])`.
         2. DINERO: Para sumar ganancias o montos previstos, usa la columna `totalPrevisto`.
-        3. FECHAS: Antes de filtrar fechas, asegúrate de convertirlas: `df['fechaCierre'] = pd.to_datetime(df['fechaCierre'], errors='coerce')`. Usa `fechaCierre` para ventas ganadas y `fechaCreacion` para nuevas oportunidades.
-        4. ESTADOS DE OPORTUNIDAD: Usa `estadoOportunidad`. Los valores típicos son 'CERRADA' (ganada), 'OPORTUNIDAD PERDIDA', 'OPORTUNIDAD PROCESO','EN NEGOCIACIÓN'.
-           - Si piden cerradas o ganadas: `df[df['estadoOportunidad'].astype(str).str.upper() == 'CERRADA']`.
-        5. TEXTOS Y NOMBRES: Si te piden buscar por Vendedor, Empresa, Origen, o Tipo, usa siempre `.str.contains('texto_a_buscar', case=False, na=False)` para evitar errores de mayúsculas/minúsculas.
-           - Vendedores: `representanteVentas`
-           - Empresas: `nombreEmpresa`
-           - Tipo (Venta/Renovación): `tipo`
-           - Motivos: `motivoPerdida`
-        6. FILTROS MÚLTIPLES: Si la pregunta tiene varias condiciones (Ej: "Ventas cerradas por Manuel Rivera en 2026"), encadena los filtros correctamente.
-        7. TILDES Y ORTOGRAFÍA: Al buscar textos o nombres (como Vendedores o Empresas), asume que el usuario puede no usar tildes. Escribe el código Pandas usando expresiones regulares para ignorar tildes, por ejemplo: `df['representanteVentas'].str.contains('ver[oó]nika', case=False, regex=True)`.
-        8. SI EL TIPO DE "moneda" ES "Soles" CAMBIAR A "US Dollar" dividiendo el totalPrevisto entre 4.
+        3. FECHAS: Convierte fechas así: `df['fechaCierre'] = pd.to_datetime(df['fechaCierre'], errors='coerce')`. Usa `fechaCierre` para ventas ganadas y `fechaCreacion` para nuevas oportunidades.
+        4. ESTADOS: Usa `estadoOportunidad` (CERRADA, OPORTUNIDAD PERDIDA, OPORTUNIDAD PROCESO, EN NEGOCIACIÓN).
+        5. TEXTOS Y NOMBRES: Usa `.str.contains('texto', case=False, na=False)`.
+        6. FILTROS MÚLTIPLES: Encadena los filtros correctamente si hay varias condiciones.
+        7. TILDES: Al buscar textos (Vendedores, Empresas, Nombres), usa expresiones regulares para ignorar tildes: `str.contains('ver[oó]nika', case=False, regex=True)`.
+        8. MONEDA: Si el tipo de "moneda" es "Soles", dividir el `totalPrevisto` entre 4.
+        9. NUNCA fuerces `float()` sobre variables que sean texto puro (como rubros, estados de oportunidad o nombres de empresas). Si el usuario pide un nombre o rubro, devuelve ese String tal cual.
         
-        🎯 INSTRUCCIONES DE SALIDA (ADÁPTATE A LA PREGUNTA):
-        Analiza cuidadosamente la pregunta y genera DOS variables exactas:
-        - Variable `respuesta_final` (FLOAT, INT o STRING): Si piden dinero, guarda el monto. Si piden contar, guarda la cantidad. Si piden un dato de texto (ej: nombre, rubro, estado), guarda el texto exacto.
-        - Variable `detalles` (STRING): Un texto con el desglose. Si muestras dinero, formatea así: f"${{monto:,.2f}}". Usa saltos de línea ('\\n') para que sea fácil de leer.
+        🎯 INSTRUCCIONES DE SALIDA:
+        Analiza la pregunta y genera TRES variables exactas:
+        - Variable `respuesta_final` (FLOAT, INT o STRING): El monto, cantidad o texto exacto. (Ojo: NO uses float() si es un String).
+        - Variable `detalles` (STRING): Texto con el desglose. Si es dinero, formatea f"${{monto:,.2f}}". Usa '\\n'.
+        - Variable `tabla_resultado` (DATAFRAME o None): Si el usuario pide información, listas o detalles de registros específicos, guarda aquí el DataFrame filtrado con esas filas. Si solo pide un cálculo global, pon `tabla_resultado = None`.
 
         Devuelve SOLO código Python limpio. NO agregues ```python al inicio ni ``` al final. Nada de texto extra.
 
@@ -254,9 +246,9 @@ if st.session_state.df is not None:
         with col1:
             with st.spinner("Procesando datos..."):
                 try:
-                    # EJECUCIÓN DEL PASO 1 (Extracción)
+                    # PASO 1: Generar código Pandas
                     completion = client_groq.chat.completions.create(
-                        model="meta-llama/llama-4-scout-17b-16e-instruct", # Tu modelo
+                        model="meta-llama/llama-4-scout-17b-16e-instruct", 
                         messages=[{"role": "user", "content": prompt_extraccion}],
                         temperature=0
                     )
@@ -265,19 +257,22 @@ if st.session_state.df is not None:
                     code_match = re.search(r'```(?:python)?\n?(.*?)```', raw_content, re.DOTALL)
                     codigo_limpio = code_match.group(1).strip() if code_match else raw_content.strip()
 
+                    # Ejecutar el código generado por la IA
                     vars_locales = {'df': df.copy(), 'pd': pd}
                     exec(codigo_limpio, {}, vars_locales)
                     
+                    # Recuperar variables
                     res_final = vars_locales.get('respuesta_final', 0)
                     texto_detalles = vars_locales.get('detalles', 'Análisis completado sin detalles.')
+                    tabla_datos = vars_locales.get('tabla_resultado', None)
                     
-                    # Lógica para mostrar número o texto sin que falle
+                    # Formatear el resultado a mostrar (Seguro contra caídas por texto)
                     try:
                         valor_formateado = f"${float(res_final):,.2f}"
                     except (ValueError, TypeError):
                         valor_formateado = str(res_final)
                     
-                    # Actualizar caja de resultados principal
+                    # 1. MOSTRAR RESULTADO PRINCIPAL (IZQUIERDA)
                     res_placeholder.markdown(f"""
                         <div class="result-box">
                             <div class="result-label">RESULTADO PRINCIPAL</div>
@@ -285,35 +280,37 @@ if st.session_state.df is not None:
                         </div>
                     """, unsafe_allow_html=True)
                     
+                    # 2. MOSTRAR DETALLES (IZQUIERDA)
                     detalles_placeholder.info(texto_detalles)
 
-                    # --- PASO 2: LA IA ANALIZA EL DATO Y DA SU VEREDICTO ---
+                    # 3. MOSTRAR TABLA DE DATOS RELACIONADA ¡A LA DERECHA!
+                    # Se inyecta en el placeholder que creamos arriba en la col2
+                    if tabla_datos is not None and isinstance(tabla_datos, pd.DataFrame) and not tabla_datos.empty:
+                        with tabla_derecha_placeholder.container():
+                            # Lo pongo en expanded=True para que cuando aparezca, ya se vea la tabla sin dar clic
+                            with st.expander("📊 TABLA DE RESULTADOS DE TU CONSULTA", expanded=True):
+                                st.dataframe(tabla_datos, use_container_width=True)
+
+                    # 4. GENERAR Y MOSTRAR VEREDICTO DE IA (IZQUIERDA)
                     with st.spinner("Generando veredicto consultivo..."):
                         prompt_analisis = f"""
-                        El gerente de CAD SOLUTIONS hizo esta pregunta: "{pregunta}"
-                        
-                        Los datos exactos que el sistema extrajo son:
-                        - Resultado principal: {valor_formateado}
-                        - Detalles: {texto_detalles}
+                        Pregunta: "{pregunta}"
+                        Resultado principal: {valor_formateado}
+                        Detalles: {texto_detalles}
 
-                        Eres un consultor de negocios y ventas Senior. Analiza este resultado y escribe un breve veredicto o conclusión estratégica para el gerente. Sé directo, profesional y aporta valor o sugerencias si aplica. 
-                        NO expliques cómo hiciste el cálculo matemático, concéntrate estrictamente en qué significa este dato para el negocio en un párrafo de máximo 3 a 4 líneas.
+                        Eres un consultor de ventas Senior. Analiza este resultado y escribe un breve veredicto o conclusión estratégica. Sé directo y aporta valor. No expliques la matemática, máximo 3 a 4 líneas.
                         """
-                        
-                        # Usamos un modelo más versátil para la redacción
                         completion_analisis = client_groq.chat.completions.create(
                             model="llama-3.3-70b-versatile", 
                             messages=[{"role": "user", "content": prompt_analisis}],
                             temperature=0.5
                         )
-                        
                         veredicto_ia = completion_analisis.choices[0].message.content
                         
-                        # Mostrar el veredicto en la UI
                         veredicto_placeholder.markdown("### 💡 Veredicto Estratégico")
                         veredicto_placeholder.success(veredicto_ia)
                     
-                    # Código oculto por si quieres ver qué hizo
+                    # 5. MOSTRAR EL CÓDIGO (IZQUIERDA, AL FINAL)
                     with st.expander("⚙️ VER CÓDIGO GENERADO POR LA IA"):
                         st.code(codigo_limpio, language='python')
                         
