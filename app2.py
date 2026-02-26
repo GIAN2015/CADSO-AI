@@ -116,12 +116,16 @@ if not st.session_state["autenticado"]:
 # ==========================================
 # 3. CREDENCIALES (PROTEGIDAS)
 # ==========================================
+
+
 ACCOUNT_ID = st.secrets["ACCOUNT_ID"]
 CONSUMER_KEY = st.secrets["CONSUMER_KEY"]
 CONSUMER_SECRET = st.secrets["CONSUMER_SECRET"]
 TOKEN_ID = st.secrets["TOKEN_ID"]
 TOKEN_SECRET = st.secrets["TOKEN_SECRET"]
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+
+# Iniciamos el cliente de Groq con la API Key seguramente almacenada en Streamlit Secrets
 
 client_groq = Groq(api_key=GROQ_API_KEY)
 
@@ -248,7 +252,7 @@ if st.session_state.df is not None:
                 try:
                     # PASO 1: Generar código Pandas
                     completion = client_groq.chat.completions.create(
-                        model="meta-llama/llama-4-scout-17b-16e-instruct", 
+                        model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt_extraccion}],
                         temperature=0
                     )
