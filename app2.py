@@ -117,13 +117,13 @@ if not st.session_state["autenticado"]:
 # 3. CREDENCIALES (PROTEGIDAS)
 # ==========================================
 
-
 ACCOUNT_ID = st.secrets["ACCOUNT_ID"]
 CONSUMER_KEY = st.secrets["CONSUMER_KEY"]
 CONSUMER_SECRET = st.secrets["CONSUMER_SECRET"]
 TOKEN_ID = st.secrets["TOKEN_ID"]
 TOKEN_SECRET = st.secrets["TOKEN_SECRET"]
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+
 
 # Iniciamos el cliente de Groq con la API Key seguramente almacenada en Streamlit Secrets
 
@@ -223,18 +223,17 @@ if st.session_state.df is not None:
         
         Información técnica de tipos:
         {info_tabla}
-
+f
         🚨 REGLAS ESTRICTAS DE NEGOCIO:
         1. DUPLICADOS (VITAL): ANTES de hacer cualquier cálculo, elimina filas repetidas por oportunidad: 
            `df = df.drop_duplicates(subset=['idOportunidad'])`.
-        2. DINERO: Para sumar ganancias o montos previstos, usa la columna `totalPrevisto`.
+        2. DINERO: Para sumar ganancias o montos previstos, usa la columna `MontootalPrevisto`.
         3. FECHAS: Convierte fechas así: `df['fechaCierre'] = pd.to_datetime(df['fechaCierre'], errors='coerce')`. Usa `fechaCierre` para ventas ganadas y `fechaCreacion` para nuevas oportunidades.
         4. ESTADOS: Usa `estadoOportunidad` (CERRADA, OPORTUNIDAD PERDIDA, OPORTUNIDAD PROCESO, EN NEGOCIACIÓN).
         5. TEXTOS Y NOMBRES: Usa `.str.contains('texto', case=False, na=False)`.
         6. FILTROS MÚLTIPLES: Encadena los filtros correctamente si hay varias condiciones.
         7. TILDES: Al buscar textos (Vendedores, Empresas, Nombres), usa expresiones regulares para ignorar tildes: `str.contains('ver[oó]nika', case=False, regex=True)`.
-        8. MONEDA: Si el tipo de "moneda" es "Soles", dividir el `totalPrevisto` entre 4.
-        9. NUNCA fuerces `float()` sobre variables que sean texto puro (como rubros, estados de oportunidad o nombres de empresas). Si el usuario pide un nombre o rubro, devuelve ese String tal cual.
+        8. NUNCA fuerces `float()` sobre variables que sean texto puro (como rubros, estados de oportunidad o nombres de empresas). Si el usuario pide un nombre o rubro, devuelve ese String tal cual.
         
         🎯 INSTRUCCIONES DE SALIDA:
         Analiza la pregunta y genera TRES variables exactas:
